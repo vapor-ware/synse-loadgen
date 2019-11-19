@@ -1,0 +1,35 @@
+#
+# docker-compose.yaml
+#
+# A simple deployment of Synse LoadGen with Synse Server and
+# an emulator plugin instance. Useful for learning, testing,
+# and debugging.
+#
+
+version: '3'
+services:
+  synse-loadgen:
+    container_name: synse-loadgen
+    image: vaporio/synse-loadgen
+    environment:
+      SLG_SYNSE_HOST: synse-server
+    links:
+    - synse-server
+
+  synse-server:
+    container_name: synse-server
+    image: vaporio/synse-server
+    ports:
+    - '5000:5000'
+    environment:
+      SYNSE_LOGGING: debug
+      SYNSE_PLUGIN_TCP: emulator-plugin:5001
+    links:
+    - emulator-plugin
+
+  emulator-plugin:
+    container_name: emulator-plugin
+    image: vaporio/emulator-plugin
+    expose:
+    - '5001'
+    command: ['--debug']

@@ -1,0 +1,87 @@
+pipeline {
+
+  agent any
+
+  environment {
+    IMAGE_NAME = 'vaporio/synse-loadgen'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Lint') {
+      steps {
+        sh 'tox -e lint'
+      }
+    }
+
+    stage('Verify Image Build') {
+      steps {
+        sh '''
+          docker build \
+            --label build_date=$(date -u +%Y-%m-%dT%T 2> /dev/null) \
+            --label version=$(python setup.py --version) \
+            --label commit=$(git rev-parse --short HEAD 2> /dev/null || true) \
+             -t ${IMAGE_NAME}:canary .
+        '''
+      }
+    }
+
+    stage('Publish "latest" Image (master)') {
+      when {
+        branch 'master'
+      }
+      steps {
+        withDockerRegistry(registry: [credentialsId: 'vio-docker-hub']) {
+          sh '''
+            docker build \
+              --label build_date=$(date -u +%Y-%m-%dT%T 2> /dev/null) \
+              --label version=$(python setup.py --version) \
+              --label commit=$(git rev-parse --short HEAD 2> /dev/null || true) \
+              -t ${IMAGE_NAME}:latest .
+          '''
+
+          sh 'docker push ${IMAGE_NAME}:latest'
+        }
+      }
+    }
+
+    stage('Draft GitHub Release') {
+      when {
+        buildingTag()
+      }
+      environment {
+        GITHUB_USER = 'vapor-ware'
+        GITHUB_TOKEN = credentials('vio-bot-gh-token')
+        GITHUB_REPONAME = 'synse-loadgen'
+      }
+      steps {
+        // Build package distribution
+        sh 'python setup.py sdist --formats=gztar,zip'
+
+        // Auto-generate a changelog for the release
+        sh './bin/ci/generate_changelog.sh'
+
+        // Create the release
+        sh 'docker pull edaniszewski/ghr'
+        sh 'docker run --rm -v $PWD:/repo edaniszewski/ghr -u ${GITHUB_USER} -r ${GITHUB_REPONAME} -t ${GITHUB_TOKEN} -b "$(cat ./CHANGELOG.md)" -replace -draft ${TAG_NAME} dist'
+      }
+    }
+
+    stage('Publish Release Images') {
+      when {
+        buildingTag()
+      }
+      steps {
+        withDockerRegistry(registry: [credentialsId: 'vio-docker-hub']) {
+          sh './bin/ci/build_and_publish.sh latest'
+        }
+      }
+    }
+
+  }
+}

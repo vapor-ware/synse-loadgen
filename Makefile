@@ -1,0 +1,51 @@
+#
+# Synse LoadGen
+#
+
+PKG_NAME    := synse-loadgen
+PKG_VERSION := $(shell python setup.py --version)
+IMAGE_NAME  := vaporio/synse-loadgen
+
+GIT_COMMIT  ?= $(shell git rev-parse --short HEAD 2> /dev/null || true)
+BUILD_DATE  := $(shell date -u +%Y-%m-%dT%T 2> /dev/null)
+
+
+.PHONY: clean
+clean:  ## Clean up build and test artifacts
+	rm -rf build/ dist/ *.egg-info htmlcov/ .coverage* .pytest_cache/ \
+		synse_loadgen/__pycache__
+
+.PHONY: deps
+deps:  ## Update the frozen pip dependencies (requirements.txt)
+	tox -e deps
+
+.PHONY: docker
+docker:  ## Build the docker image
+	docker build \
+		--label build_date=${BUILD_DATE} \
+		--label version=${PKG_VERSION} \
+		--label commit=${GIT_COMMIT} \
+		-t ${IMAGE_NAME}:latest .
+
+.PHONY: fmt
+fmt:  ## Automatic source code formatting (isort, autopep8)
+	tox -e fmt
+
+.PHONY: github-tag
+github-tag:  ## Create and push a tag with the current version
+	git tag -a v${PKG_VERSION} -m "${PKG_NAME} version ${PKG_VERSION}"
+	git push -u origin ${PKG_VERSION}
+
+.PHONY: lint
+lint:  ## Run linting checks on the project source code (isort, flake8, twine)
+	tox -e lint
+
+.PHONY: version
+version:  ## Print the current application version
+	@echo "$(PKG_VERSION)"
+
+.PHONY: help
+help:  ## Print Make usage information
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_-]+:.*?## / {printf "\033[36m%-16s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
+
+.DEFAULT_GOAL := help
