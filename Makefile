@@ -33,7 +33,7 @@ fmt:  ## Automatic source code formatting (isort, autopep8)
 
 .PHONY: github-tag
 github-tag:  ## Create and push a tag with the current version
-	git tag -a v${PKG_VERSION} -m "${PKG_NAME} version ${PKG_VERSION}"
+	git tag -a ${PKG_VERSION} -m "${PKG_NAME} version ${PKG_VERSION}"
 	git push -u origin ${PKG_VERSION}
 
 .PHONY: lint
