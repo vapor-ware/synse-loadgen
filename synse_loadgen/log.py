@@ -5,8 +5,8 @@ import logging.config
 import sys
 
 import structlog
-from synse_loadgen import config
 
+from synse_loadgen import config
 
 logging.config.dictConfig({
     'version': 1,

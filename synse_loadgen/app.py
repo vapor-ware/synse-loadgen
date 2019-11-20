@@ -1,75 +1,56 @@
+"""Synse LoadGen application logic and request handlers."""
 
-import functools
 import asyncio
-import aiohttp
+import functools
 import random
 import time
-from synse.client import HTTPClientV3, WebsocketClientV3
-from synse_loadgen import config
-from synse_loadgen.log import logger, setup_logger
+from typing import Union
+
+import aiohttp
 from asyncio_throttle import Throttler
+from synse.client import HTTPClientV3, WebsocketClientV3
+
+from synse_loadgen import cache, config
+from synse_loadgen.log import logger, setup_logger
+
+# Global cache to hold results from Synse Server
+synse_cache = cache.AsyncCache()
 
 
-class AsyncCache:
-
-    def __init__(self):
-        self.lock = asyncio.Lock()
-        self.state = {}
-
-    async def clear(self):
-        async with self.lock:
-            self.state = {}
-
-    async def set(self, key, val):
-        async with self.lock:
-            self.state[key] = val
-
-    async def get(self, key):
-        async with self.lock:
-            return self.state.get(key)
-
-
-synse_cache = AsyncCache()
-
-
-def load_config():
-    """Load application configuration from YAML file, if it exists."""
-    logger.info('loading application configuration')
-    config.options.add_config_paths(
-        '.',
-        '/etc/synse-loadgen',
-    )
-
-    config.options.env_prefix = 'SLG'
-    config.options.auto_env = True
-
-    config.options.parse(requires_cfg=False)
-    config.options.validate()
-
-
-async def err_invalid_endpoint(client, throttler):
+async def err_invalid_endpoint(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        throttler: Throttler,
+) -> None:
+    """Handler to make a request against an endpoint which does not exist."""
     client_type = client.__class__.__name__
 
     if isinstance(client, HTTPClientV3):
         url = f'{client.url}/bad-route'
         try:
             async with throttler:
-                resp = await client.make_request('GET', url)
+                _ = await client.make_request('GET', url)
         except Exception as e:
             # this is okay and what we expect
-            logger.debug('invalid endpoint request failed expectedly', url=url, err=e, client=client_type)
+            logger.debug(
+                'invalid endpoint request failed expectedly',
+                url=url, err=e, client=client_type,
+            )
 
     else:
         event = 'request/bad-event'
         try:
             async with throttler:
-                resp = await client.request(event)
+                _ = await client.request(event)
         except Exception as e:
             # this is okay and what we expect
-            logger.debug('invalid event request failed expectedly', request=event, err=e, client=client_type)
+            logger.debug(
+                'invalid event request failed expectedly',
+                request=event, err=e, client=client_type,
+            )
 
 
 def log_request(func):
+    """Decorator to log information about the request being made."""
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         name = func.__name__[3:]
@@ -80,14 +61,26 @@ def log_request(func):
             _ = await func(*args, **kwargs)
 
         except Exception as e:
-            logger.exception('failed request unexpectedly', request=name, client=client, err=e, t=time.time()-t)
+            logger.exception(
+                'failed request unexpectedly',
+                request=name, client=client, err=e, t=time.time() - t,
+            )
         else:
-            logger.debug('issued request', request=name, client=client, t=time.time()-t)
+            logger.debug(
+                'issued request',
+                request=name, client=client, t=time.time() - t,
+            )
+
     return wrapper
 
 
 @log_request
-async def on_status(client, is_err, throttler):
+async def on_status(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        is_err: bool,
+        throttler: Throttler,
+) -> None:
+    """Handler for issuing a status request."""
     if is_err:
         await err_invalid_endpoint(client, throttler)
     else:
@@ -96,7 +89,12 @@ async def on_status(client, is_err, throttler):
 
 
 @log_request
-async def on_version(client, is_err, throttler):
+async def on_version(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        is_err: bool,
+        throttler: Throttler,
+) -> None:
+    """Handler for issuing a version request."""
     if is_err:
         await err_invalid_endpoint(client, throttler)
     else:
@@ -105,7 +103,12 @@ async def on_version(client, is_err, throttler):
 
 
 @log_request
-async def on_scan(client, is_err, throttler):
+async def on_scan(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        is_err: bool,
+        throttler: Throttler,
+) -> None:
+    """Handler for issuing a scan request."""
     if is_err:
         await err_invalid_endpoint(client, throttler)
     else:
@@ -120,7 +123,12 @@ async def on_scan(client, is_err, throttler):
 
 
 @log_request
-async def on_read(client, is_err, throttler):
+async def on_read(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        is_err: bool,
+        throttler: Throttler,
+) -> None:
+    """Handler for issuing a read request."""
     if is_err:
         await err_invalid_endpoint(client, throttler)
     else:
@@ -135,7 +143,12 @@ async def on_read(client, is_err, throttler):
 
 
 @log_request
-async def on_read_device(client, is_err, throttler):
+async def on_read_device(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        is_err: bool,
+        throttler: Throttler,
+) -> None:
+    """Handler for issuing a device read request."""
     if is_err:
         async with throttler:
             _ = await client.read_device('not-a-known-device-id')
@@ -143,14 +156,21 @@ async def on_read_device(client, is_err, throttler):
         async with throttler:
             devs = await synse_cache.get('devices')
             if not devs:
-                logger.debug('no devices cached, waiting for future scan request to rebuild device cache')
+                logger.debug(
+                    'no devices cached, waiting for future scan request to rebuild device cache',
+                )
                 return
 
             _ = await client.read_device(random.choice(devs))
 
 
 @log_request
-async def on_plugin(client, is_err, throttler):
+async def on_plugin(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        is_err: bool,
+        throttler: Throttler,
+) -> None:
+    """Handler for issuing a plugin info request."""
     if is_err:
         async with throttler:
             _ = await client.plugin('not-a-known-plugin-id')
@@ -158,14 +178,21 @@ async def on_plugin(client, is_err, throttler):
         async with throttler:
             plugins = await synse_cache.get('plugins')
             if not plugins:
-                logger.debug('no plugins cached, waiting for future plugins request to rebuild plugins cache')
+                logger.debug(
+                    'no plugins cached, waiting for future plugins request to rebuild plugins cache',
+                )
                 return
 
             _ = await client.plugin(random.choice(plugins))
 
 
 @log_request
-async def on_plugins(client, is_err, throttler):
+async def on_plugins(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        is_err: bool,
+        throttler: Throttler,
+) -> None:
+    """Handler for issuing an enumerate plugins request."""
     if is_err:
         await err_invalid_endpoint(client, throttler)
     else:
@@ -176,7 +203,12 @@ async def on_plugins(client, is_err, throttler):
 
 
 @log_request
-async def on_plugin_health(client, is_err, throttler):
+async def on_plugin_health(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        is_err: bool,
+        throttler: Throttler,
+) -> None:
+    """Handler for issuing a plugin health request."""
     if is_err:
         await err_invalid_endpoint(client, throttler)
     else:
@@ -185,7 +217,12 @@ async def on_plugin_health(client, is_err, throttler):
 
 
 @log_request
-async def on_tags(client, is_err, throttler):
+async def on_tags(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        is_err: bool,
+        throttler: Throttler,
+) -> None:
+    """Handler for issuing a tags request."""
     if is_err:
         await err_invalid_endpoint(client, throttler)
     else:
@@ -197,7 +234,12 @@ async def on_tags(client, is_err, throttler):
 
 
 @log_request
-async def on_info(client, is_err, throttler):
+async def on_info(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        is_err: bool,
+        throttler: Throttler,
+) -> None:
+    """Handler for issuing a device info request."""
     if is_err:
         async with throttler:
             _ = await client.info('not-a-known-device-id')
@@ -205,14 +247,21 @@ async def on_info(client, is_err, throttler):
         async with throttler:
             devs = await synse_cache.get('devices')
             if not devs:
-                logger.debug('no devices cached, waiting for future scan request to rebuild device cache')
+                logger.debug(
+                    'no devices cached, waiting for future scan request to rebuild device cache',
+                )
                 return
 
             _ = await client.info(random.choice(devs))
 
 
 @log_request
-async def on_transaction(client, is_err, throttler):
+async def on_transaction(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        is_err: bool,
+        throttler: Throttler,
+) -> None:
+    """Handler for issuing a transaction info request."""
     if is_err:
         async with throttler:
             _ = await client.transaction('not-a-known-transaction-id')
@@ -220,14 +269,21 @@ async def on_transaction(client, is_err, throttler):
         async with throttler:
             txns = await synse_cache.get('txns')
             if not txns:
-                logger.debug('no transactions cached, waiting for future transactions request to rebuild cache')
+                logger.debug(
+                    'no transactions cached, waiting for future transactions request to rebuild cache',
+                )
                 return
 
             _ = await client.transaction(random.choice(txns))
 
 
 @log_request
-async def on_transactions(client, is_err, throttler):
+async def on_transactions(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        is_err: bool,
+        throttler: Throttler,
+) -> None:
+    """Handler for issuing an enumerate transactions request."""
     if is_err:
         await err_invalid_endpoint(client, throttler)
     else:
@@ -237,7 +293,12 @@ async def on_transactions(client, is_err, throttler):
 
 
 @log_request
-async def on_write_async(client, is_err, throttler):
+async def on_write_async(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        is_err: bool,
+        throttler: Throttler,
+) -> None:
+    """Handler for issuing an asynchronous write request."""
     if is_err:
         if random.randint(0, 1):
             # Issue a request to the correct device with the incorrect data.
@@ -262,7 +323,9 @@ async def on_write_async(client, is_err, throttler):
         async with throttler:
             leds = await synse_cache.get('leds')
             if not leds:
-                logger.debug('no LED devices cached, waiting for future scans request to rebuild cache')
+                logger.debug(
+                    'no LED devices cached, waiting for future scans request to rebuild cache',
+                )
                 return
 
             _ = await client.write_async(
@@ -272,7 +335,12 @@ async def on_write_async(client, is_err, throttler):
 
 
 @log_request
-async def on_write_sync(client, is_err, throttler):
+async def on_write_sync(
+        client: Union[HTTPClientV3, WebsocketClientV3],
+        is_err: bool,
+        throttler: Throttler,
+) -> None:
+    """Handler for issuing a synchronous write request."""
     if is_err:
         if random.randint(0, 1):
             # Issue a request to the correct device with the incorrect data.
@@ -297,7 +365,9 @@ async def on_write_sync(client, is_err, throttler):
         async with throttler:
             leds = await synse_cache.get('leds')
             if not leds:
-                logger.debug('no LED devices cached, waiting for future scans request to rebuild cache')
+                logger.debug(
+                    'no LED devices cached, waiting for future scans request to rebuild cache',
+                )
                 return
 
             _ = await client.write_sync(
@@ -306,10 +376,16 @@ async def on_write_sync(client, is_err, throttler):
             )
 
 
-async def run():
+async def run() -> None:
+    """Run the Synse LoadGen application."""
+
     logger.info('starting application run')
-    load_config()
-    logger.info('loaded configuration', config=config.options.config, source=config.options.config_file)
+    config.load_config()
+    logger.info(
+        'loaded configuration',
+        config=config.options.config,
+        source=config.options.config_file,
+    )
 
     setup_logger()
     logger.info('configured logger')
@@ -356,13 +432,14 @@ async def run():
             'plugins',
             'plugin_health',
             'tags',
-            'info'
+            'info',
         ]
 
+        err_ratio = config.options.get('settings.error_ratio')
         while True:
             await globals().get(f'on_{random.choice(requests)}')(
                 random.choice((httpv3, wsv3)),
-                random.random() <= config.options.get('settings.error_ratio'),
+                random.random() <= err_ratio,
                 throttler,
             )
             await asyncio.sleep(0.05)

@@ -2,6 +2,7 @@
 """Entry point script for running Synse LoadGen."""
 
 import asyncio
+
 from synse_loadgen.app import run
 
 

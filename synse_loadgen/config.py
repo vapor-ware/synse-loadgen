@@ -2,6 +2,8 @@
 
 from bison import Bison, DictOption, Option, Scheme
 
+from synse_loadgen.log import logger
+
 # The Synse LoadGen configuration scheme
 scheme = Scheme(
     Option('logging', default='debug', choices=['debug', 'info', 'warning', 'error', 'critical']),
@@ -19,3 +21,18 @@ scheme = Scheme(
 # Configuration options manager for Synse LoadGen. All access to configuration
 # data should be done through `options`.
 options = Bison(scheme)
+
+
+def load_config() -> None:
+    """Load application configuration from YAML file, if it exists."""
+    logger.info('loading application configuration')
+    options.add_config_paths(
+        '.',
+        '/etc/synse-loadgen',
+    )
+
+    options.env_prefix = 'SLG'
+    options.auto_env = True
+
+    options.parse(requires_cfg=False)
+    options.validate()
