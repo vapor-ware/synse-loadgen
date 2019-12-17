@@ -13,7 +13,7 @@ scheme = Scheme(
         Option('timeout', default=5, field_type=int, bind_env=True),
     )),
     DictOption('settings', default={}, scheme=Scheme(
-        Option('rate', default=5, field_type=int, bind_env=True),
+        Option('rate', default=25, field_type=int, bind_env=True),
         Option('error_ratio', default=0.02, field_type=float, bind_env=True),
     )),
 )

@@ -398,6 +398,10 @@ async def run() -> None:
         ),
     )
 
+    # Note: setting the rate limit to something low can artificially inflate the latency
+    # measurement around the time it takes for a request to complete because the timer
+    # is above the context of the throttler, so any time spent waiting by the throttler is
+    # counted in the latency measurement which is not correct.
     throttler = Throttler(rate_limit=config.options.get('settings.rate'))
 
     async with session as s:
