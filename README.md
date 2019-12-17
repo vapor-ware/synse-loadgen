@@ -36,9 +36,3 @@ that requests are being made.
 | `synse.timeout` | The timeout (in seconds) for a request to resolve. | `5` |
 | `settings.rate` | The maximum rate (requests/second) to issue requests against the Synse API. | `25` |
 | `settings.error_ratio` | The ratio of requests which should be sent in error. This value should be between 0 and 1. Requests in error include bad data, bad query params, invalid URLs, etc. | `0.02` |
-
-> **Note** Setting `settings.rate` to a low rate (e.g. 5) can artificially make it look like requests
-> are taking longer to resolve than they actually are. This is because the timer around the request function
-> is done above the context of the throttler, so it the throttler waits to limit requests to the low throughput
-> to fulfil the configured rate, the outer timer will include the wait time in the overall time for the
-> request.

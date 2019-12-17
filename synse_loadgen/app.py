@@ -4,6 +4,7 @@ import asyncio
 import functools
 import random
 import time
+from contextlib import contextmanager
 from typing import Union
 
 import aiohttp
@@ -49,32 +50,25 @@ async def err_invalid_endpoint(
             )
 
 
-def log_request(func):
-    """Decorator to log information about the request being made."""
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        name = func.__name__[3:]
-        client = args[0].__class__.__name__
-        t = time.time()
-
-        try:
-            _ = await func(*args, **kwargs)
-
-        except Exception as e:
-            logger.exception(
-                'failed request unexpectedly',
-                request=name, client=client, err=e, t=time.time() - t,
-            )
-        else:
-            logger.debug(
-                'issued request',
-                request=name, client=client, t=time.time() - t,
-            )
-
-    return wrapper
+@contextmanager
+def log_latency(fn, client):
+    t = time.time()
+    try:
+        yield
+    except Exception as e:
+        logger.exception(
+            'failed request unexpectedly',
+            request=fn, client=client.__class__.__name__,
+            err=e, t=time.time() - t,
+        )
+    else:
+        logger.debug(
+            'issued request',
+            request=fn, client=client.__class__.__name__,
+            t=time.time() - t,
+        )
 
 
-@log_request
 async def on_status(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -85,10 +79,10 @@ async def on_status(
         await err_invalid_endpoint(client, throttler)
     else:
         async with throttler:
-            _ = await client.status()
+            with log_latency('status', client):
+                _ = await client.status()
 
 
-@log_request
 async def on_version(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -99,10 +93,10 @@ async def on_version(
         await err_invalid_endpoint(client, throttler)
     else:
         async with throttler:
-            _ = await client.version()
+            with log_latency('version', client):
+                _ = await client.version()
 
 
-@log_request
 async def on_scan(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -113,7 +107,9 @@ async def on_scan(
         await err_invalid_endpoint(client, throttler)
     else:
         async with throttler:
-            devices = await client.scan()
+            with log_latency('scan', client):
+                devices = await client.scan()
+
             ids = [d.id for d in devices]
             await synse_cache.set('devices', ids)
 
@@ -122,7 +118,6 @@ async def on_scan(
             await synse_cache.set('leds', leds)
 
 
-@log_request
 async def on_read(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -139,10 +134,10 @@ async def on_read(
                 ['system/type:led', 'system/type:fan'],
                 [['system/type:led'], ['system/type:humidity']],
             ])
-            _ = await client.read(tags=tags)
+            with log_latency('read', client):
+                _ = await client.read(tags=tags)
 
 
-@log_request
 async def on_read_device(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -154,7 +149,9 @@ async def on_read_device(
             _ = await client.read_device('not-a-known-device-id')
     else:
         async with throttler:
-            devs = await synse_cache.get('devices')
+            with log_latency('read_device', client):
+                devs = await synse_cache.get('devices')
+
             if not devs:
                 logger.debug(
                     'no devices cached, waiting for future scan request to rebuild device cache',
@@ -164,7 +161,6 @@ async def on_read_device(
             _ = await client.read_device(random.choice(devs))
 
 
-@log_request
 async def on_plugin(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -183,10 +179,10 @@ async def on_plugin(
                 )
                 return
 
-            _ = await client.plugin(random.choice(plugins))
+            with log_latency('plugin', client):
+                _ = await client.plugin(random.choice(plugins))
 
 
-@log_request
 async def on_plugins(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -197,12 +193,12 @@ async def on_plugins(
         await err_invalid_endpoint(client, throttler)
     else:
         async with throttler:
-            plugins = await client.plugins()
+            with log_latency('plugins', client):
+                plugins = await client.plugins()
             ids = [p.id for p in plugins]
             await synse_cache.set('plugins', ids)
 
 
-@log_request
 async def on_plugin_health(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -213,10 +209,10 @@ async def on_plugin_health(
         await err_invalid_endpoint(client, throttler)
     else:
         async with throttler:
-            _ = await client.plugin_health()
+            with log_latency('plugin_health', client):
+                _ = await client.plugin_health()
 
 
-@log_request
 async def on_tags(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -227,13 +223,13 @@ async def on_tags(
         await err_invalid_endpoint(client, throttler)
     else:
         async with throttler:
-            _ = await client.tags(
-                ns=random.choice(['system', 'default', 'foobar', None]),
-                ids=random.choice([True, False]),
-            )
+            with log_latency('tags', client):
+                _ = await client.tags(
+                    ns=random.choice(['system', 'default', 'foobar', None]),
+                    ids=random.choice([True, False]),
+                )
 
 
-@log_request
 async def on_info(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -252,10 +248,10 @@ async def on_info(
                 )
                 return
 
-            _ = await client.info(random.choice(devs))
+            with log_latency('info', client):
+                _ = await client.info(random.choice(devs))
 
 
-@log_request
 async def on_transaction(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -274,10 +270,10 @@ async def on_transaction(
                 )
                 return
 
-            _ = await client.transaction(random.choice(txns))
+            with log_latency('transaction', client):
+                _ = await client.transaction(random.choice(txns))
 
 
-@log_request
 async def on_transactions(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -288,11 +284,11 @@ async def on_transactions(
         await err_invalid_endpoint(client, throttler)
     else:
         async with throttler:
-            txns = await client.transactions()
+            with log_latency('transactions', client):
+                txns = await client.transactions()
             await synse_cache.set('txns', txns)
 
 
-@log_request
 async def on_write_async(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -306,18 +302,20 @@ async def on_write_async(
             # If there are no LEDs, this will fall back to the other failure request.
             if leds:
                 async with throttler:
-                    _ = await client.write_async(
-                        device=random.choice(leds),
-                        payload={'action': 'color', 'data': 'ff33aa'},
-                    )
+                    with log_latency('write_async', client):
+                        _ = await client.write_async(
+                            device=random.choice(leds),
+                            payload={'action': 'color', 'data': 'ff33aa'},
+                        )
                 return
 
         # Issue a request to a nonexistent device
         async with throttler:
-            _ = await client.write_async(
-                device='not-a-known-device-id',
-                payload={'action': 'state', 'data': 'on'},
-            )
+            with log_latency('write_async', client):
+                _ = await client.write_async(
+                    device='not-a-known-device-id',
+                    payload={'action': 'state', 'data': 'on'},
+                )
 
     else:
         async with throttler:
@@ -328,13 +326,13 @@ async def on_write_async(
                 )
                 return
 
-            _ = await client.write_async(
-                device=random.choice(leds),
-                payload={'action': 'color', 'data': 'ff33aa'},
-            )
+            with log_latency('write_async', client):
+                _ = await client.write_async(
+                    device=random.choice(leds),
+                    payload={'action': 'color', 'data': 'ff33aa'},
+                )
 
 
-@log_request
 async def on_write_sync(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -348,18 +346,20 @@ async def on_write_sync(
             # If there are no LEDs, this will fall back to the other failure request.
             if leds:
                 async with throttler:
-                    _ = await client.write_sync(
-                        device=random.choice(leds),
-                        payload={'action': 'color', 'data': 'ff33aa'},
-                    )
+                    with log_latency('write_sync', client):
+                        _ = await client.write_sync(
+                            device=random.choice(leds),
+                            payload={'action': 'color', 'data': 'ff33aa'},
+                        )
                 return
 
         # Issue a request to a nonexistent device
         async with throttler:
-            _ = await client.write_sync(
-                device='not-a-known-device-id',
-                payload={'action': 'state', 'data': 'on'},
-            )
+            with log_latency('write_sync', client):
+                _ = await client.write_sync(
+                    device='not-a-known-device-id',
+                    payload={'action': 'state', 'data': 'on'},
+                )
 
     else:
         async with throttler:
@@ -370,10 +370,11 @@ async def on_write_sync(
                 )
                 return
 
-            _ = await client.write_sync(
-                device=random.choice(leds),
-                payload={'action': 'color', 'data': 'ff33aa'},
-            )
+            with log_latency('write_sync', client):
+                _ = await client.write_sync(
+                    device=random.choice(leds),
+                    payload={'action': 'color', 'data': 'ff33aa'},
+                )
 
 
 async def run() -> None:
@@ -398,10 +399,6 @@ async def run() -> None:
         ),
     )
 
-    # Note: setting the rate limit to something low can artificially inflate the latency
-    # measurement around the time it takes for a request to complete because the timer
-    # is above the context of the throttler, so any time spent waiting by the throttler is
-    # counted in the latency measurement which is not correct.
     throttler = Throttler(rate_limit=config.options.get('settings.rate'))
 
     async with session as s:
