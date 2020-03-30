@@ -2,7 +2,7 @@
 # Synse LoadGen
 #
 
-PKG_NAME    := synse-loadgen
+PKG_NAME    := $(shell python setup.py --name)
 PKG_VERSION := $(shell python setup.py --version)
 IMAGE_NAME  := vaporio/synse-loadgen
 
