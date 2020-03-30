@@ -40,7 +40,7 @@ setup(
         ],
     },
     install_requires=[
-        'synse==3.0.0a6',
+        'synse>=1.0.0',
         'aiocache',
         'asyncio-throttle',
         'bison>=0.1.0',
