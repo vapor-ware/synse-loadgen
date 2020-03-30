@@ -1,7 +1,7 @@
 """Synse LoadGen: Generate request load on Synse Server instances."""
 
 __title__ = 'synse_loadgen'
-__version__ = '0.1.0'
+__version__ = '1.0.0'
 __api_version__ = 'v3'
 __description__ = 'Generate request load on Synse Server instances.'
 __author__ = 'Erick Daniszewski'
