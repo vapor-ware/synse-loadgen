@@ -36,3 +36,17 @@ that requests are being made.
 | `synse.timeout` | The timeout (in seconds) for a request to resolve. | `5` |
 | `settings.rate` | The maximum rate (requests/second) to issue requests against the Synse API. | `25` |
 | `settings.error_ratio` | The ratio of requests which should be sent in error. This value should be between 0 and 1. Requests in error include bad data, bad query params, invalid URLs, etc. | `0.02` |
+
+## Compatibility
+
+Below is a table describing the compatibility of various Synse Server versions with Synse platform versions.
+
+|              | Synse v2 | Synse v3 |
+| ------------ | -------- | -------- |
+| LoadGen v1.x | ✗        | ✓        |
+
+
+
+## License
+
+Synse LoadGen is released under the [GPL-3.0](LICENSE) license.
