@@ -4,26 +4,26 @@
 #
 #    pip-compile --output-file=requirements.txt setup.py
 #
-aiocache==0.11.1
+aiocache==0.11.1          # via synse_loadgen (setup.py)
 aiodns==2.0.0             # via synse
 aiohttp==3.6.2            # via synse
 async-timeout==3.0.1      # via aiohttp
-asyncio-throttle==0.1.1
+asyncio-throttle==0.1.1   # via synse_loadgen (setup.py)
 attrs==19.3.0             # via aiohttp
-bison==0.1.2
-cchardet==2.1.5           # via synse
-cffi==1.13.2              # via pycares
+bison==0.1.2              # via synse_loadgen (setup.py)
+cchardet==2.1.6           # via synse
+cffi==1.14.0              # via pycares
 chardet==3.0.4            # via aiohttp
 idna-ssl==1.1.0           # via aiohttp
-idna==2.8                 # via idna-ssl, yarl
+idna==2.9                 # via idna-ssl, yarl
 iso8601==0.1.12           # via synse
-multidict==4.5.2          # via aiohttp, synse, yarl
-pycares==3.0.0            # via aiodns
-pycparser==2.19           # via cffi
-pyyaml==5.1.2             # via bison
-six==1.13.0               # via structlog
-structlog==19.2.0
-synse==3.0.0a6
+multidict==4.7.5          # via aiohttp, synse, yarl
+pycares==3.1.1            # via aiodns
+pycparser==2.20           # via cffi
+pyyaml==5.3.1             # via bison
+six==1.14.0               # via structlog
+structlog==20.1.0         # via synse_loadgen (setup.py)
+synse==1.0.0              # via synse_loadgen (setup.py)
 typing-extensions==3.7.4.1  # via aiohttp
 typing==3.7.4.1           # via aiodns
-yarl==1.3.0               # via aiohttp
+yarl==1.4.2               # via aiohttp
