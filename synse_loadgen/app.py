@@ -417,22 +417,33 @@ async def run() -> None:
     throttler = Throttler(rate_limit=config.options.get('settings.rate'))
 
     async with session as s:
-        logger.debug('creating Synse HTTP client')
-        httpv3 = HTTPClientV3(
-            host=config.options.get('synse.host'),
-            port=config.options.get('synse.port'),
-            timeout=config.options.get('synse.timeout'),
-            session=s,
-        )
 
-        logger.debug('creating Synse WebSocket client')
-        wsv3 = WebsocketClientV3(
-            host=config.options.get('synse.host'),
-            port=config.options.get('synse.port'),
-            session=s,
-        )
-        logger.debug('connecting WebSocket')
-        await wsv3.connect()
+        httpv3 = None
+        wsv3 = None
+
+        for i in range(5):
+            logger.debug('creating Synse HTTP client', attempt=i)
+            try:
+                httpv3 = HTTPClientV3(
+                    host=config.options.get('synse.host'),
+                    port=config.options.get('synse.port'),
+                    timeout=config.options.get('synse.timeout'),
+                    session=s,
+                )
+
+                logger.debug('creating Synse WebSocket client')
+                wsv3 = WebsocketClientV3(
+                    host=config.options.get('synse.host'),
+                    port=config.options.get('synse.port'),
+                    session=s,
+                )
+                logger.debug('connecting WebSocket')
+                await wsv3.connect()
+            except Exception as e:
+                logger.warning('failed to connect to synse... retrying', err=e)
+                await asyncio.sleep(0.5)
+            else:
+                break
 
         requests = [
             'status',
