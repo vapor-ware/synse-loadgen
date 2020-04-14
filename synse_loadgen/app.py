@@ -69,6 +69,17 @@ def log_latency(fn, client):
         )
 
 
+@contextmanager
+def expect_error(fn, client):
+    try:
+        yield
+    except Exception as e:
+        logger.debug(
+            'invalid endpoint request failed expectedly',
+            err=e, fn=fn, client=client.__class__.__name__,
+        )
+
+
 async def on_status(
         client: Union[HTTPClientV3, WebsocketClientV3],
         is_err: bool,
@@ -146,7 +157,8 @@ async def on_read_device(
     """Handler for issuing a device read request."""
     if is_err:
         async with throttler:
-            _ = await client.read_device('not-a-known-device-id')
+            with expect_error('read_device', client):
+                _ = await client.read_device('not-a-known-device-id')
     else:
         async with throttler:
             with log_latency('read_device', client):
@@ -169,7 +181,8 @@ async def on_plugin(
     """Handler for issuing a plugin info request."""
     if is_err:
         async with throttler:
-            _ = await client.plugin('not-a-known-plugin-id')
+            with expect_error('plugin', client):
+                _ = await client.plugin('not-a-known-plugin-id')
     else:
         async with throttler:
             plugins = await synse_cache.get('plugins')
@@ -238,7 +251,8 @@ async def on_info(
     """Handler for issuing a device info request."""
     if is_err:
         async with throttler:
-            _ = await client.info('not-a-known-device-id')
+            with expect_error('info', client):
+                _ = await client.info('not-a-known-device-id')
     else:
         async with throttler:
             devs = await synse_cache.get('devices')
@@ -260,7 +274,8 @@ async def on_transaction(
     """Handler for issuing a transaction info request."""
     if is_err:
         async with throttler:
-            _ = await client.transaction('not-a-known-transaction-id')
+            with expect_error('transaction', client):
+                _ = await client.transaction('not-a-known-transaction-id')
     else:
         async with throttler:
             txns = await synse_cache.get('txns')
@@ -302,7 +317,7 @@ async def on_write_async(
             # If there are no LEDs, this will fall back to the other failure request.
             if leds:
                 async with throttler:
-                    with log_latency('write_async', client):
+                    with expect_error('write_async', client):
                         _ = await client.write_async(
                             device=random.choice(leds),
                             payload={'action': 'color', 'data': 'ff33aa'},
@@ -311,7 +326,7 @@ async def on_write_async(
 
         # Issue a request to a nonexistent device
         async with throttler:
-            with log_latency('write_async', client):
+            with expect_error('write_async', client):
                 _ = await client.write_async(
                     device='not-a-known-device-id',
                     payload={'action': 'state', 'data': 'on'},
@@ -346,7 +361,7 @@ async def on_write_sync(
             # If there are no LEDs, this will fall back to the other failure request.
             if leds:
                 async with throttler:
-                    with log_latency('write_sync', client):
+                    with expect_error('write_sync', client):
                         _ = await client.write_sync(
                             device=random.choice(leds),
                             payload={'action': 'color', 'data': 'ff33aa'},
@@ -355,7 +370,7 @@ async def on_write_sync(
 
         # Issue a request to a nonexistent device
         async with throttler:
-            with log_latency('write_sync', client):
+            with expect_error('write_sync', client):
                 _ = await client.write_sync(
                     device='not-a-known-device-id',
                     payload={'action': 'state', 'data': 'on'},
