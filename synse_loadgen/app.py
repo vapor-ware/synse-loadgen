@@ -320,7 +320,7 @@ async def on_write_async(
                     with expect_error('write_async', client):
                         _ = await client.write_async(
                             device=random.choice(leds),
-                            payload={'action': 'color', 'data': 'ff33aa'},
+                            payload={'action': 'color', 'data': 'not a hex color'},
                         )
                 return
 
@@ -364,7 +364,7 @@ async def on_write_sync(
                     with expect_error('write_sync', client):
                         _ = await client.write_sync(
                             device=random.choice(leds),
-                            payload={'action': 'color', 'data': 'ff33aa'},
+                            payload={'action': 'color', 'data': 'not a hex color'},
                         )
                 return
 
