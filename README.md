@@ -39,7 +39,7 @@ that requests are being made.
 
 ## Compatibility
 
-Below is a table describing the compatibility of various Synse Server versions with Synse platform versions.
+Below is a table describing the compatibility of various Synse LoadGen versions with Synse platform versions.
 
 |              | Synse v2 | Synse v3 |
 | ------------ | -------- | -------- |
