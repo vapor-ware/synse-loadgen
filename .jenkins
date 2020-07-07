@@ -83,5 +83,21 @@ pipeline {
       }
     }
 
+    stage('Updating Helm Chart') {
+      when {
+        buildingTag()
+      }
+      agent {
+        // Label "deploy" maps to a vaporio/deployment-tools container
+        label 'deploy'
+      }
+      environment {
+        GITHUB_TOKEN = credentials('vio-bot-gh-token')
+      }
+      steps {
+        sh 'chart-releaser update --diff --debug'
+      }
+    }
+
   }
 }
