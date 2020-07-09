@@ -95,7 +95,9 @@ pipeline {
         GITHUB_TOKEN = credentials('vio-bot-gh-token')
       }
       steps {
-        sh 'chart-releaser update --diff --debug'
+        container('deploy') {
+          sh 'chart-releaser update --diff --debug'
+        }
       }
     }
 
