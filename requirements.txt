@@ -20,7 +20,7 @@ iso8601==0.1.12           # via synse
 multidict==4.7.5          # via aiohttp, synse, yarl
 pycares==3.1.1            # via aiodns
 pycparser==2.20           # via cffi
-pyyaml==5.3.1             # via bison
+pyyaml==5.4             # via bison
 six==1.14.0               # via structlog
 structlog==20.1.0         # via synse_loadgen (setup.py)
 synse==1.0.0              # via synse_loadgen (setup.py)
