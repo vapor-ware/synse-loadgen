@@ -1,7 +1,7 @@
 #
 # BUILDER STAGE
 #
-FROM vaporio/python:3.6 as builder
+FROM docker.io/vaporio/python:3.6 as builder
 
 COPY requirements.txt .
 
@@ -15,7 +15,7 @@ RUN pip install --no-deps --prefix=/build --no-warn-script-location /synse-loadg
 #
 # RELEASE STAGE
 #
-FROM vaporio/python:3.6-slim
+FROM docker.io/vaporio/python:3.6-slim
 
 LABEL maintainer="Vapor IO" \
       name="vaporio/synse-loadgen" \
