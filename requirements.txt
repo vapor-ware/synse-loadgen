@@ -18,7 +18,7 @@ idna-ssl==1.1.0           # via aiohttp
 idna==2.9                 # via idna-ssl, yarl
 iso8601==0.1.12           # via synse
 multidict==4.7.5          # via aiohttp, synse, yarl
-pycares==3.1.1            # via aiodns
+pycares==4.2.0            # via aiodns
 pycparser==2.20           # via cffi
 pyyaml==5.4             # via bison
 six==1.14.0               # via structlog
